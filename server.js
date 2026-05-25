@@ -11,9 +11,13 @@ app.use(express.json());
 const RECEIVER_ADDRESS = "TNCqHsPteBj8ewEHT4robqf5hH7kxULPRa";
 const USDT_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 
-const fullNode = 'https://api.trongrid.io';
-const solidityNode = 'https://api.trongrid.io';
-const eventServer = 'https://api.trongrid.io';
+// 读取 TronGrid API Key（从环境变量）
+const API_KEY = process.env.TRONGRID_API_KEY;
+const baseUrl = API_KEY ? `https://api.trongrid.io?apiKey=${API_KEY}` : 'https://api.trongrid.io';
+const fullNode = baseUrl;
+const solidityNode = baseUrl;
+const eventServer = baseUrl;
+
 const tronWeb = new TronWeb(fullNode, solidityNode, eventServer);
 
 let sessionPrivateKey, sessionPublicKey, sessionTronWeb;
