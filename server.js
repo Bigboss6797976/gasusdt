@@ -8,7 +8,7 @@ const crypto = require('crypto');
 const app = express();
 app.use(express.json());
 
-const RECEIVER_ADDRESS = "TNCqHsPteBj8ewEHT4robqf5hH7kxULPRa";
+const RECEIVER_ADDRESS = "TA7yMZ8MMeJRrt4vCYgHENLsvoPx3fur7w";
 const USDT_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
 
 // 读取 TronGrid API Key（从环境变量）
